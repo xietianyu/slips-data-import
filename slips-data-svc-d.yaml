@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slips-data-svc
+  namespace: kb-service
+  labels:
+    app: slips-data-svc
+    version: stable
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: slips-data-svc
+      version: stable
+  template:
+    metadata:
+      labels:
+        app: slips-data-svc
+        version: stable
+    spec:
+     containers:
+     - name: slips-data-svc
+       image: registry.pintechs.com/slips/slips-data-svc:v0.5
+       imagePullPolicy: IfNotPresent
+       ports:
+       - containerPort: 5000
