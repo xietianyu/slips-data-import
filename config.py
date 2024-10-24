@@ -5,3 +5,5 @@ class Config:
     UPLOAD_FOLDER = 'uploads/'
     ALLOWED_EXTENSIONS = {'zip'}
     STORAGE_PATH = '/home/slips/data/config/history'
+    EXECUTE_PATH = '/home/slips/data/config/data'
+    TEST_ADDRESS='http://10.10.201.13:60010'

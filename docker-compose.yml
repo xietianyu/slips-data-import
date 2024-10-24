@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  slips-data-svc:
+    image: registry.pintechs.com/slips/slips-data-svc:v0.6
+    container_name: slips-data-svc
+    ports:
+      - "5000:5000"
+    volumes:
+      - "/root/docker/volumes/slips-svc/data/config:/home/slips/data/config"
+    restart: always
