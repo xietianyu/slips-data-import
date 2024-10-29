@@ -19,8 +19,13 @@ spec:
         version: stable
     spec:
      containers:
-     - name: slips-data-svc
-       image: registry.pintechs.com/slips/slips-data-svc:v0.5
+       volumeMounts:
+       - name: slips-svc-config
+         mountPath: /home/slips/data/config
+       - name: config
+         mountPath: /home/slips/data/config
+       name: slips-data-svc
+       image: registry.pintechs.com/slips/slips-data-svc:v0.6
        imagePullPolicy: IfNotPresent
        ports:
        - containerPort: 5000

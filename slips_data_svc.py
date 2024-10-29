@@ -64,26 +64,31 @@ def multi_thread_execute_auto_test(dir):
             station='order'
             url = '/orderPlan/newOrderPlan'
             multiThreads=False
+            mobiles=['18810322249']
         elif dir=='s1_plan':
             planType='jobPlan'
             station='S1'
             url = '/jobPlan/newJobPlan'
             multiThreads=False
+            mobiles=['18810322249']
         elif dir=='d1_plan':
             planType='jobPlan'
             station='D1'
             url = '/jobPlan/newJobPlan'
             multiThreads=True
+            mobiles=['13295852013']
         elif dir=='d2_plan':
             planType='jobPlan'
             station='D2'
             url = '/jobPlan/newJobPlan'
             multiThreads=True
+            mobiles=['15868823089']
         elif dir=='t1_plan':
             planType='jobPlan'
             station='T1'
             url = '/jobPlan/newJobPlan'
             multiThreads=True
+            mobiles=['18583685796']
         sub_dirs=os.listdir(base_path)
         # sub_dirs_count=len(sub_dirs)
         unique_exec_path=os.path.join(exec_path,dir)
@@ -114,7 +119,9 @@ def multi_thread_execute_auto_test(dir):
                 "dataSource":"test",
                 "multiThreads":multiThreads
             }
-            flow(planType, url, jobplan_data,multiThreads)
+            is_success=flow(planType, url, jobplan_data,multiThreads)
+            if is_success is False:
+                send_markdown_message(f'自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
 
 
 # 处理文件上传和数据导入
@@ -325,6 +332,17 @@ def flow(plan_type, url, data,multiThreads):  # 流程
     else:
         return False
 
+def send_markdown_message(content,mobiles):
+    url=app.config['QYAPI']
+    payload = {
+        "msgtype": "text",
+        "text": {
+            "content": content,
+            "mentioned_mobile_list": mobiles
+        }
+    }
+    response = requests.post(url,json=payload)
+    return response.json()
 
 
 if __name__ == '__main__':
