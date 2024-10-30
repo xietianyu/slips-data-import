@@ -45,19 +45,111 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/auto_execute', methods=['POST'])
-def execute_auto_test():
+# 每月手动测试master分支 合同计划加作业计划
+@app.route('/monthly_test', methods=['POST'])
+def monthly_test():
+    stage='monthly'
     dirs=os.listdir(app.config['STORAGE_PATH'])
     threads=[]
     for  dir in dirs:
         if os.path.isdir(os.path.join(app.config['STORAGE_PATH'],dir)):
-            thread=threading.Thread(target=multi_thread_execute_auto_test,args=(dir,))
+            thread=threading.Thread(target=multi_thread_execute_auto_test,args=(dir,stage))
             thread.start()
             threads.append(thread)
     return jsonify({"status": "Auto test execution started", "threads_started": len(threads)})
 
-def multi_thread_execute_auto_test(dir):
-        base_path=os.path.join(app.config['STORAGE_PATH'],dir)
+# 作业计划分支push 执行相应分支的自动化测试
+@app.route('/auto_execute_branch/<plan_type>', methods=['POST'])
+def execute_auto_test_branch(plan_type):
+    stage='push'
+    target_path=os.path.join(app.config['STORAGE_PATH'],plan_type,stage)
+    thread=threading.Thread(target=thread_execute_plan_auto_test,args=(target_path,plan_type,stage))
+    thread.start()
+    return jsonify({"status": "Auto test execution started", "thread_started": 1,"plan_type":plan_type,"stage":stage})
+    
+
+def thread_execute_plan_auto_test(path,plan_type,stage):
+    dirs=os.listdir(path)
+    for dir in dirs:
+        base_path=os.path.join(path,dir)
+        exec_path=os.path.join(app.config['EXECUTE_PATH'],plan_type,stage)
+        if plan_type=='order_plan':
+            planType='orderPlan'
+            station='order'
+            url = '/orderPlan/newOrderPlan'
+            multiThreads=False
+            mobiles=['18810322249']
+        elif plan_type=='s1_plan':
+            planType='jobPlan'
+            station='S1'
+            url = '/jobPlan/newJobPlan'
+            multiThreads=False
+            mobiles=['18810322249']
+        elif plan_type=='d1_plan':
+            planType='jobPlan'
+            station='D1'
+            url = '/jobPlan/newJobPlan'
+            multiThreads=True
+            mobiles=['13295852013']
+        elif plan_type=='d2_plan':
+            planType='jobPlan'
+            station='D2'
+            url = '/jobPlan/newJobPlan'
+            multiThreads=True
+            mobiles=['15868823089']
+        elif plan_type=='t1_plan':
+            planType='jobPlan'
+            station='T1'
+            url = '/jobPlan/newJobPlan'
+            multiThreads=True
+            mobiles=['18583685796']
+        os.makedirs(exec_path, exist_ok=True)
+        shutil.copy(os.path.join(base_path,'algo_config.json'),os.path.join(exec_path,'algo_config.json'))
+        shutil.copy(os.path.join(base_path,'store.hdf5'),os.path.join(exec_path,'store.hdf5'))
+        app.logger.info(f'Copying algo_config.json and store.hdf5 from {os.path.join(base_path)} to {exec_path}')
+        utc_time = calendar.timegm(time.gmtime())
+        app.logger.info(str(station) + '，计划号：Test' + str(station) + str(utc_time))
+        planNo='Test' + str(station) + str(utc_time)
+        jobplan_data = {
+            "station": str(station),
+            "planNo": planNo,
+            "decisionNo": "",
+            "scheduled": False,
+            "planLimitTimeMin": 24,
+            "planLimitTimeMax": 30,
+            "previousTask": "",
+            "launchTask": "",
+            "rspType": "",
+            "scheduleType": "",
+            "scheduleSubClass": "",
+            "policy": "",
+            "matpool": "",
+            "snapNo": "",
+            "exec":"algo",
+            "dataSource":"test",
+            "multiThreads":multiThreads,
+            "autoTestType":stage
+        }
+        is_success=flow(planType, url, jobplan_data,multiThreads,stage)
+        if is_success is False:
+            send_markdown_message(f'自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
+
+
+# master分支合并 release 执行合同和作业计划的自动测试
+@app.route('/auto_execute', methods=['POST'])
+def execute_auto_test():
+    stage='merge'
+    dirs=os.listdir(app.config['STORAGE_PATH'])
+    threads=[]
+    for  dir in dirs:
+        if os.path.isdir(os.path.join(app.config['STORAGE_PATH'],dir)):
+            thread=threading.Thread(target=multi_thread_execute_auto_test,args=(dir,stage))
+            thread.start()
+            threads.append(thread)
+    return jsonify({"status": "Auto test execution started", "threads_started": len(threads)})
+
+def multi_thread_execute_auto_test(dir,stage):
+        base_path=os.path.join(app.config['STORAGE_PATH'],dir,stage)
         exec_path=app.config['EXECUTE_PATH']
         if dir=='order_plan':
             planType='orderPlan'
@@ -91,7 +183,7 @@ def multi_thread_execute_auto_test(dir):
             mobiles=['18583685796']
         sub_dirs=os.listdir(base_path)
         # sub_dirs_count=len(sub_dirs)
-        unique_exec_path=os.path.join(exec_path,dir)
+        unique_exec_path=os.path.join(exec_path,dir,stage)
         os.makedirs(unique_exec_path, exist_ok=True)
         for sub_dir in sub_dirs:
             shutil.copy(os.path.join(base_path,sub_dir,'algo_config.json'),os.path.join(unique_exec_path,'algo_config.json'))
@@ -117,16 +209,17 @@ def multi_thread_execute_auto_test(dir):
                 "snapNo": "",
                 "exec":"algo",
                 "dataSource":"test",
-                "multiThreads":multiThreads
+                "multiThreads":multiThreads,
+                "autoTestType":stage
             }
-            is_success=flow(planType, url, jobplan_data,multiThreads)
+            is_success=flow(planType, url, jobplan_data,multiThreads,stage)
             if is_success is False:
                 send_markdown_message(f'自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
 
 
 # 处理文件上传和数据导入
-@app.route('/upload/<upload_type>', methods=['POST'])
-def upload_file(upload_type):
+@app.route('/upload/<upload_type>/<stage>', methods=['POST'])
+def upload_file(upload_type,stage):
     if 'file' not in request.files:
         flash('No file part')
         app.logger.warning('No file part in request')
@@ -144,7 +237,7 @@ def upload_file(upload_type):
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
         try:
-            handle_uploaded_file(file_path, upload_type)
+            handle_uploaded_file(file_path, upload_type,stage)
             app.logger.info(f'File {filename} uploaded and data imported successfully')
             flash('File uploaded and data imported successfully!', 'success')
         except Exception as e:
@@ -156,11 +249,12 @@ def upload_file(upload_type):
         app.logger.warning('Invalid file type')
         return redirect(request.url)
     
-def handle_uploaded_file(file_path,upload_type):
-    base_path = os.path.join(app.config['STORAGE_PATH'], upload_type)
+def handle_uploaded_file(file_path,upload_type,stage):
+    base_path = os.path.join(app.config['STORAGE_PATH'], upload_type,stage)
     # 清空目标目录的所有文件
-    if os.path.exists(base_path):
-        shutil.rmtree(base_path)
+    if stage!="monthly":
+        if os.path.exists(base_path):
+            shutil.rmtree(base_path)
     os.makedirs(base_path, exist_ok=True)
     # 根据上传的类型 解压zip文件到STORAGE_PATH中对应上传类型的文件夹中去
     with zipfile.ZipFile(file_path, 'r') as zip_ref:
@@ -253,12 +347,13 @@ def new_plan(plan_type, url, data):  # 新建计划
         return False
 
 
-def schedule(plan_type, planid,multiThreads):  # 自动排程
+def schedule(plan_type, planid,multiThreads,stage):  # 自动排程
     url = '/' + plan_type + '/schedule'
     data = {
         plan_type+"Id": planid,
         "multiThreads": multiThreads,
-        "exec": "algo"
+        "exec": "algo",
+        "autoTestType":stage
     }
     res = check_res_code(url, data)
     if res is not False:  # 确认返回值code，不为0不执行轮循
@@ -316,10 +411,10 @@ def check_task_scheduled(plan_type, planid):  # 确认获取已排任务
         app.logger.error('Failed to call the get scheduled task interface')
 
 
-def flow(plan_type, url, data,multiThreads):  # 流程
+def flow(plan_type, url, data,multiThreads,stage):  # 流程
     planid = new_plan(plan_type, url, data)  # 新建计划
     if planid is not False:
-        schedule_situation = schedule(plan_type, planid,multiThreads)  # 自动排程
+        schedule_situation = schedule(plan_type, planid,multiThreads,stage)  # 自动排程
         if schedule_situation is not False:
             confirm_progress_situation = confirm_progress(
                 plan_type, planid)  # 轮循

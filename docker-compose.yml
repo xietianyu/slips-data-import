@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   slips-data-svc:
-    image: registry.pintechs.com/slips/slips-data-svc:v0.6
+    image: registry.pintechs.com/slips/slips-data-svc:v0.7
     container_name: slips-data-svc
     ports:
       - "5000:5000"
