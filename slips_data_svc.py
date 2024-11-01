@@ -131,7 +131,8 @@ def thread_execute_plan_auto_test(path,plan_type,stage):
             "autoTestType":stage
         }
         is_success=flow(planType, url, jobplan_data,multiThreads,stage)
-        if is_success is False:
+        if is_success == False:
+            app.logger.error(f'自动测试失败，计划号：{planNo}，产线：{station}')
             send_markdown_message(f'自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
 
 
@@ -213,7 +214,8 @@ def multi_thread_execute_auto_test(dir,stage):
                 "autoTestType":stage
             }
             is_success=flow(planType, url, jobplan_data,multiThreads,stage)
-            if is_success is False:
+            if is_success == False:
+                app.logger.error(f'自动测试失败，计划号：{planNo}，产线：{station}')
                 send_markdown_message(f'自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
 
 
@@ -402,13 +404,16 @@ def check_task_scheduled(plan_type, planid):  # 确认获取已排任务
         if res_data == []:
             print('排程结束无结果')
             app.logger.info('Scheduling ended with no results')
+            return False
         else:
             print('排程结束,排程结果正常')
             app.logger.info('Scheduling ended, scheduling results are normal')
+            return True
             # print(res_data)
     else:
         print('调用获取已排任务接口失败')
         app.logger.error('Failed to call the get scheduled task interface')
+        return False
 
 
 def flow(plan_type, url, data,multiThreads,stage):  # 流程
@@ -419,7 +424,7 @@ def flow(plan_type, url, data,multiThreads,stage):  # 流程
             confirm_progress_situation = confirm_progress(
                 plan_type, planid)  # 轮循
             if confirm_progress_situation is not False:
-                check_task_scheduled(plan_type, planid)  # 获取已排任务
+                return check_task_scheduled(plan_type, planid)  # 获取已排任务
             else:
                 return False
         else:
@@ -436,6 +441,7 @@ def send_markdown_message(content,mobiles):
             "mentioned_mobile_list": mobiles
         }
     }
+    app.logger.info(f'Sending text message: {content}')
     response = requests.post(url,json=payload)
     return response.json()
 
