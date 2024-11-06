@@ -62,13 +62,19 @@ def monthly_test():
 @app.route('/auto_execute_branch/<plan_type>', methods=['POST'])
 def execute_auto_test_branch(plan_type):
     stage='push'
+    data = request.get_json()
+    # 检查解析结果
+    if data is None:
+        return jsonify({"error": "Invalid JSON data"}), 400
+    # 示例：提取 JSON 中的某个字段
+    image_name = data.get("imageName")
     target_path=os.path.join(app.config['STORAGE_PATH'],plan_type,stage)
-    thread=threading.Thread(target=thread_execute_plan_auto_test,args=(target_path,plan_type,stage))
+    thread=threading.Thread(target=thread_execute_plan_auto_test,args=(target_path,plan_type,stage,image_name))
     thread.start()
-    return jsonify({"status": "Auto test execution started", "thread_started": 1,"plan_type":plan_type,"stage":stage})
+    return jsonify({"status": "Auto test execution started", "thread_started": 1,"plan_type":plan_type,"stage":stage,"image_name":image_name})
     
 
-def thread_execute_plan_auto_test(path,plan_type,stage):
+def thread_execute_plan_auto_test(path,plan_type,stage,image_name):
     dirs=os.listdir(path)
     for dir in dirs:
         base_path=os.path.join(path,dir)
@@ -128,7 +134,8 @@ def thread_execute_plan_auto_test(path,plan_type,stage):
             "exec":"algo",
             "dataSource":"test",
             "multiThreads":multiThreads,
-            "autoTestType":stage
+            "autoTestType":stage,
+            "newImage":image_name
         }
         is_success=flow(planType, url, jobplan_data,multiThreads,stage)
         if is_success == False:
