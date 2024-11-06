@@ -137,7 +137,7 @@ def thread_execute_plan_auto_test(path,plan_type,stage,image_name):
             "autoTestType":stage,
             "newImage":image_name
         }
-        is_success=flow(planType, url, jobplan_data,multiThreads,stage)
+        is_success=flow(planType, url, jobplan_data,multiThreads,stage,image_name)
         if is_success == False:
             app.logger.error(f'自动测试失败，计划号：{planNo}，产线：{station}')
             send_markdown_message(f'自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
@@ -356,13 +356,14 @@ def new_plan(plan_type, url, data):  # 新建计划
         return False
 
 
-def schedule(plan_type, planid,multiThreads,stage):  # 自动排程
+def schedule(plan_type, planid,multiThreads,stage,image_name=None):  # 自动排程
     url = '/' + plan_type + '/schedule'
     data = {
         plan_type+"Id": planid,
         "multiThreads": multiThreads,
         "exec": "algo",
-        "autoTestType":stage
+        "autoTestType":stage,
+        "newImage":image_name
     }
     res = check_res_code(url, data)
     if res is not False:  # 确认返回值code，不为0不执行轮循
@@ -423,10 +424,10 @@ def check_task_scheduled(plan_type, planid):  # 确认获取已排任务
         return False
 
 
-def flow(plan_type, url, data,multiThreads,stage):  # 流程
+def flow(plan_type, url, data,multiThreads,stage,image_name=None):  # 流程
     planid = new_plan(plan_type, url, data)  # 新建计划
     if planid is not False:
-        schedule_situation = schedule(plan_type, planid,multiThreads,stage)  # 自动排程
+        schedule_situation = schedule(plan_type, planid,multiThreads,stage,image_name)  # 自动排程
         if schedule_situation is not False:
             confirm_progress_situation = confirm_progress(
                 plan_type, planid)  # 轮循
