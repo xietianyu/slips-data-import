@@ -243,7 +243,7 @@ def upload_file(upload_type,stage):
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         # 保存文件到服务器指定位置
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], upload_type,stage,filename)
         file.save(file_path)
         try:
             handle_uploaded_file(file_path, upload_type,stage)
@@ -265,7 +265,7 @@ def handle_uploaded_file(file_path,upload_type,stage):
         if os.path.exists(base_path):
             shutil.rmtree(base_path)
     os.makedirs(base_path, exist_ok=True)
-    # 根据上传的类型 解压zip文件到STORAGE_PATH中对应上传类型的文件夹中去
+    # 根据上传的类型 解压zip文件到STORAGE_PATH中对应上传类型的文件夹中去 同名文件会覆盖
     with zipfile.ZipFile(file_path, 'r') as zip_ref:
         zip_ref.extractall(base_path)
     # 遍历文件夹 保证每个文件夹下都有hdf5文件和algo_config.json文件 如果缺失一个文件则提示zip压缩包内哪个文件夹缺失哪个文件 一旦缺少文件 就删除所有文件
