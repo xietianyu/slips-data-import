@@ -139,8 +139,11 @@ def thread_execute_plan_auto_test(path,plan_type,stage,image_name):
         }
         is_success=flow(planType, url, jobplan_data,multiThreads,stage,image_name)
         if is_success == False:
-            app.logger.error(f'自动测试失败，计划号：{planNo}，产线：{station}')
-            send_markdown_message(f'自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
+            app.logger.error(f'分支自动测试失败，计划号：{planNo}，产线：{station}')
+            send_markdown_message(f'分支自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
+        else:
+            app.logger.info(f'分支自动测试成功，计划号：{planNo}，产线：{station}')
+            send_markdown_message(f'分支自动测试成功，计划号：{planNo}，产线：{station}',mobiles)
 
 
 # master分支合并 release 执行合同和作业计划的自动测试
@@ -222,8 +225,31 @@ def multi_thread_execute_auto_test(dir,stage):
             }
             is_success=flow(planType, url, jobplan_data,multiThreads,stage)
             if is_success == False:
-                app.logger.error(f'自动测试失败，计划号：{planNo}，产线：{station}')
-                send_markdown_message(f'自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
+                app.logger.error(f'分支自动测试失败，计划号：{planNo}，产线：{station}')
+                send_markdown_message(f'分支自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
+            else:
+                app.logger.info(f'分支自动测试成功，计划号：{planNo}，产线：{station}')
+                send_markdown_message(f'分支自动测试成功，计划号：{planNo}，产线：{station}',mobiles)
+
+def is_plan_scheduling(job_type,address):
+    url=address+'/jobPlan/getAllJobPlans'
+    data = {
+        "jobType":job_type,
+        "pageNo":1,
+        "pageSize":10,
+        "progress":["计算中"]
+    }
+    res=check_res_code(url, data)
+    if res is not False:  # 确认返回值code，不为0不执行
+        res_data = extract_field_from_dict(
+            json.loads(res.text), "data")  # 返回值转字典，并获取data值
+        if res_data.get("jobPlans") == []:
+            app.logger.info('没有正在执行的任务')
+            return False
+        else:
+            app.logger.info('存在正在执行的任务')
+            return True
+    return True
 
 
 # 处理文件上传和数据导入
@@ -243,7 +269,9 @@ def upload_file(upload_type,stage):
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         # 保存文件到服务器指定位置
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], upload_type,stage,filename)
+        file_base_path=os.path.join(app.config['UPLOAD_FOLDER'], upload_type,stage)
+        os.makedirs(file_base_path, exist_ok=True)
+        file_path = os.path.join(file_base_path,filename)
         file.save(file_path)
         try:
             handle_uploaded_file(file_path, upload_type,stage)
@@ -267,6 +295,9 @@ def handle_uploaded_file(file_path,upload_type,stage):
     os.makedirs(base_path, exist_ok=True)
     # 根据上传的类型 解压zip文件到STORAGE_PATH中对应上传类型的文件夹中去 同名文件会覆盖
     with zipfile.ZipFile(file_path, 'r') as zip_ref:
+        for file_info in zip_ref.infolist():
+            if file_info.compress_type not in [zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED]:
+                raise ValueError(f"Unsupported compression method: {file_info.compress_type}")
         zip_ref.extractall(base_path)
     # 遍历文件夹 保证每个文件夹下都有hdf5文件和algo_config.json文件 如果缺失一个文件则提示zip压缩包内哪个文件夹缺失哪个文件 一旦缺少文件 就删除所有文件
     for dir in os.listdir(base_path):
@@ -277,9 +308,8 @@ def handle_uploaded_file(file_path,upload_type,stage):
             has_hdf5 = any(file.endswith('.hdf5') for file in os.listdir(target_dir))
             has_algo_config = 'algo_config.json' in os.listdir(target_dir)
             if not has_hdf5 or not has_algo_config:
-                flash(f'An error occurred: {target_dir} is missing hdf5 or algo_config.json file')
                 app.logger.error(f'Error: {target_dir} is missing hdf5 or algo_config.json file')
-                return
+                raise Exception(f'An error occurred: {target_dir} is missing hdf5 or algo_config.json file')
             
 def import_data_to_db(file_path):
     # 使用 pandas 读取 HDF5 文件中的数据
@@ -357,6 +387,9 @@ def new_plan(plan_type, url, data):  # 新建计划
 
 
 def schedule(plan_type, planid,multiThreads,stage,image_name=None):  # 自动排程
+    # 每一分钟检查是否有正在执行的任务 如果有则等待 如果没有则执行自动排程
+    while is_plan_scheduling(plan_type,address):
+        time.sleep(60)
     url = '/' + plan_type + '/schedule'
     data = {
         plan_type+"Id": planid,
