@@ -8,3 +8,8 @@ class Config:
     EXECUTE_PATH = '/home/slips/data/config/data'
     TEST_ADDRESS='http://10.10.201.13:60010'
     QYAPI='https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=b5ca1682-c30e-4811-9e81-2cc80dcfc23e'
+    MYSQL_DATABASE_USER = 'root'
+    MYSQL_DATABASE_PASSWORD = 'AAbb1234'
+    MYSQL_DATABASE_DB = 'slips-data'
+    MYSQL_DATABASE_HOST = '10.10.201.13'
+    MYSQL_DATABASE_PORT = 3306 

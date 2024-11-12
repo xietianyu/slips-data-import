@@ -16,11 +16,13 @@ import json
 import requests
 import time
 import calendar
+from flaskext.mysql import MySQL
 
 app = Flask(__name__)
 app.config.from_object(Config)  # 使用配置文件中的参数
 
-db = SQLAlchemy(app)
+mysql =MySQL()
+mysql.init_app(app)
 address=app.config['TEST_ADDRESS']
 # 确保上传文件夹存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -49,11 +51,21 @@ def index():
 @app.route('/monthly_test', methods=['POST'])
 def monthly_test():
     stage='monthly'
+    data = request.get_json()
+    # 检查解析结果
+    if data is None:
+        return jsonify({"error": "Invalid JSON data"}), 400
+    job_id=data.get("jobId")
+    # 插入数据库
+    with mysql.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("INSERT INTO job_execution_results (job_id,status) VALUES (%s, %s)", (job_id, 'running'))
+        conn.commit()
     dirs=os.listdir(app.config['STORAGE_PATH'])
     threads=[]
     for  dir in dirs:
         if os.path.isdir(os.path.join(app.config['STORAGE_PATH'],dir)):
-            thread=threading.Thread(target=multi_thread_execute_auto_test,args=(dir,stage))
+            thread=threading.Thread(target=multi_thread_execute_auto_test,args=(dir,stage,job_id))
             thread.start()
             threads.append(thread)
     return jsonify({"status": "Auto test execution started", "threads_started": len(threads)})
@@ -68,14 +80,21 @@ def execute_auto_test_branch(plan_type):
         return jsonify({"error": "Invalid JSON data"}), 400
     # 示例：提取 JSON 中的某个字段
     image_name = data.get("imageName")
+    job_id=data.get("jobId")
+    # 插入数据库
+    with mysql.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("INSERT INTO job_execution_results (job_id,status) VALUES (%s, %s)", (job_id, 'running'))
+        conn.commit()
     target_path=os.path.join(app.config['STORAGE_PATH'],plan_type,stage)
-    thread=threading.Thread(target=thread_execute_plan_auto_test,args=(target_path,plan_type,stage,image_name))
+    thread=threading.Thread(target=thread_execute_plan_auto_test,args=(target_path,plan_type,stage,image_name,job_id))
     thread.start()
     return jsonify({"status": "Auto test execution started", "thread_started": 1,"plan_type":plan_type,"stage":stage,"image_name":image_name})
     
 
-def thread_execute_plan_auto_test(path,plan_type,stage,image_name):
+def thread_execute_plan_auto_test(path,plan_type,stage,image_name,job_id):
     dirs=os.listdir(path)
+    failure_count=0
     for dir in dirs:
         base_path=os.path.join(path,dir)
         exec_path=os.path.join(app.config['EXECUTE_PATH'],plan_type,stage)
@@ -139,11 +158,22 @@ def thread_execute_plan_auto_test(path,plan_type,stage,image_name):
         }
         is_success=flow(planType, url, jobplan_data,multiThreads,stage,station,image_name)
         if is_success == False:
+            failure_count+=1
             app.logger.error(f'分支自动测试失败，计划号：{planNo}，产线：{station}')
             send_markdown_message(f'分支自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
         else:
             app.logger.info(f'分支自动测试成功，计划号：{planNo}，产线：{station}')
             send_markdown_message(f'分支自动测试成功，计划号：{planNo}，产线：{station}',mobiles)
+    if failure_count==0:
+        with mysql.connect() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("UPDATE job_execution_results SET status='success' WHERE job_id=%s", (job_id,))
+            conn.commit()
+    else:
+        with mysql.connect() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("UPDATE job_execution_results SET status='failure' WHERE job_id=%s", (job_id,))
+            conn.commit()
 
 
 # master分支合并 release 执行合同和作业计划的自动测试
@@ -151,15 +181,25 @@ def thread_execute_plan_auto_test(path,plan_type,stage,image_name):
 def execute_auto_test():
     stage='merge'
     dirs=os.listdir(app.config['STORAGE_PATH'])
+    data = request.get_json()
+    # 检查解析结果
+    if data is None:
+        return jsonify({"error": "Invalid JSON data"}), 400
+    job_id=data.get("jobId")
+    with mysql.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("INSERT INTO job_execution_results (job_id,status) VALUES (%s, %s)", (job_id, 'running'))
+        conn.commit()
     threads=[]
     for  dir in dirs:
         if os.path.isdir(os.path.join(app.config['STORAGE_PATH'],dir)):
-            thread=threading.Thread(target=multi_thread_execute_auto_test,args=(dir,stage))
+            thread=threading.Thread(target=multi_thread_execute_auto_test,args=(dir,stage,job_id))
             thread.start()
             threads.append(thread)
     return jsonify({"status": "Auto test execution started", "threads_started": len(threads)})
 
-def multi_thread_execute_auto_test(dir,stage):
+def multi_thread_execute_auto_test(dir,stage,job_id):
+        failure_count=0
         base_path=os.path.join(app.config['STORAGE_PATH'],dir,stage)
         exec_path=app.config['EXECUTE_PATH']
         if dir=='order_plan':
@@ -225,11 +265,19 @@ def multi_thread_execute_auto_test(dir,stage):
             }
             is_success=flow(planType, url, jobplan_data,multiThreads,stage,station)
             if is_success == False:
+                failure_count+=1
                 app.logger.error(f'分支自动测试失败，计划号：{planNo}，产线：{station}')
                 send_markdown_message(f'分支自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
             else:
                 app.logger.info(f'分支自动测试成功，计划号：{planNo}，产线：{station}')
                 send_markdown_message(f'分支自动测试成功，计划号：{planNo}，产线：{station}',mobiles)
+        with mysql.connect() as conn:
+            with conn.cursor() as cursor:
+                if failure_count==0:
+                    cursor.execute("UPDATE job_execution_results SET status='success' WHERE job_id=%s", (job_id,))
+                else:
+                    cursor.execute("UPDATE job_execution_results SET status='failure' WHERE job_id=%s",(job_id,))
+            
 
 def is_plan_scheduling(plan_type,job_type):
     if plan_type=='jobPlan':
@@ -258,7 +306,6 @@ def is_plan_scheduling(plan_type,job_type):
             app.logger.info('存在正在执行的任务')
             return True
     return True
-
 
 # 处理文件上传和数据导入
 @app.route('/upload/<upload_type>/<stage>', methods=['POST'])
