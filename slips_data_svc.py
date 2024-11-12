@@ -137,7 +137,7 @@ def thread_execute_plan_auto_test(path,plan_type,stage,image_name):
             "autoTestType":stage,
             "newImage":image_name
         }
-        is_success=flow(planType, url, jobplan_data,multiThreads,stage,image_name)
+        is_success=flow(planType, url, jobplan_data,multiThreads,stage,station,image_name)
         if is_success == False:
             app.logger.error(f'分支自动测试失败，计划号：{planNo}，产线：{station}')
             send_markdown_message(f'分支自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
@@ -223,7 +223,7 @@ def multi_thread_execute_auto_test(dir,stage):
                 "multiThreads":multiThreads,
                 "autoTestType":stage
             }
-            is_success=flow(planType, url, jobplan_data,multiThreads,stage)
+            is_success=flow(planType, url, jobplan_data,multiThreads,stage,station)
             if is_success == False:
                 app.logger.error(f'分支自动测试失败，计划号：{planNo}，产线：{station}')
                 send_markdown_message(f'分支自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
@@ -231,19 +231,27 @@ def multi_thread_execute_auto_test(dir,stage):
                 app.logger.info(f'分支自动测试成功，计划号：{planNo}，产线：{station}')
                 send_markdown_message(f'分支自动测试成功，计划号：{planNo}，产线：{station}',mobiles)
 
-def is_plan_scheduling(job_type,address):
-    url=address+'/jobPlan/getAllJobPlans'
-    data = {
-        "jobType":job_type,
-        "pageNo":1,
-        "pageSize":10,
-        "progress":["计算中"]
-    }
+def is_plan_scheduling(plan_type,job_type):
+    if plan_type=='jobPlan':
+        url='/jobPlan/getAllJobPlans'
+        data = {
+            "jobType":job_type,
+            "pageNo":1,
+            "pageSize":10,
+            "progress":["计算中"]
+        }
+    else:
+        url='/orderPlan/getAllOrderPlans'
+        data = {
+            "pageNo":1,
+            "pageSize":10,
+            "progress":["计算中"]
+        }
     res=check_res_code(url, data)
     if res is not False:  # 确认返回值code，不为0不执行
         res_data = extract_field_from_dict(
             json.loads(res.text), "data")  # 返回值转字典，并获取data值
-        if res_data.get("jobPlans") == []:
+        if res_data.get("jobPlans") == [] or res_data.get("orderPlans") == [] or res_data.get("total") ==0:
             app.logger.info('没有正在执行的任务')
             return False
         else:
@@ -386,9 +394,9 @@ def new_plan(plan_type, url, data):  # 新建计划
         return False
 
 
-def schedule(plan_type, planid,multiThreads,stage,image_name=None):  # 自动排程
+def schedule(plan_type, planid,multiThreads,stage,station,image_name=None):  # 自动排程
     # 每一分钟检查是否有正在执行的任务 如果有则等待 如果没有则执行自动排程
-    while is_plan_scheduling(plan_type,address):
+    while is_plan_scheduling(plan_type,station):
         time.sleep(60)
     url = '/' + plan_type + '/schedule'
     data = {
@@ -457,10 +465,10 @@ def check_task_scheduled(plan_type, planid):  # 确认获取已排任务
         return False
 
 
-def flow(plan_type, url, data,multiThreads,stage,image_name=None):  # 流程
+def flow(plan_type, url, data,multiThreads,stage,station,image_name=None):  # 流程
     planid = new_plan(plan_type, url, data)  # 新建计划
     if planid is not False:
-        schedule_situation = schedule(plan_type, planid,multiThreads,stage,image_name)  # 自动排程
+        schedule_situation = schedule(plan_type, planid,multiThreads,stage,station,image_name)  # 自动排程
         if schedule_situation is not False:
             confirm_progress_situation = confirm_progress(
                 plan_type, planid)  # 轮循
