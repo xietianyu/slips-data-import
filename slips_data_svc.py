@@ -16,13 +16,23 @@ import json
 import requests
 import time
 import calendar
-from flaskext.mysql import MySQL
+from datetime import datetime
+from sqlalchemy.sql import func
 
 app = Flask(__name__)
 app.config.from_object(Config)  # 使用配置文件中的参数
+db = SQLAlchemy(app)
 
-mysql =MySQL()
-mysql.init_app(app)
+class JobExecutionResult(db.Model):
+    __tablename__ = 'job_execution_results'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    job_id = db.Column(db.String(40), nullable=False)
+    status = db.Column(db.Enum('success', 'failure', 'running', name='status_enum'), nullable=False, default='running')
+    plan_no = db.Column(db.String(100), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
 address=app.config['TEST_ADDRESS']
 # 确保上传文件夹存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -46,19 +56,15 @@ if not app.debug:
 def index():
     return render_template('index.html')
 
-@app.route('/jenkins_job')
-def get_jenkins_job():
-    data=request.get_json()
-    job_id=data.get("jobId")
-    with mysql.connect() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT * FROM job_execution_results WHERE job_id=%s",(job_id,))
-            res=cursor.fetchall()
-            if res is None:
-                return jsonify({"error": "Invalid job id"}), 400
-            else:
-                # 返回查询结果
-                return jsonify(res)
+@app.route('/job_results/<job_id>', methods=['GET'])
+def get_job_results(job_id):
+    results = JobExecutionResult.query.filter_by(job_id=job_id).all()
+    if not results:
+        return jsonify({'message': 'No results found for the given job_id'}), 404
+    
+    results_list = [{'id': result.id, 'job_id': result.job_id, 'status': result.status, 'plan_no': result.plan_no, 'created_at': result.created_at, 'updated_at': result.updated_at} for result in results]
+    
+    return jsonify(results_list), 200
 
 # 每月手动测试master分支 合同计划加作业计划
 @app.route('/monthly_test', methods=['POST'])
@@ -69,11 +75,6 @@ def monthly_test():
     if data is None:
         return jsonify({"error": "Invalid JSON data"}), 400
     job_id=data.get("jobId")
-    # 插入数据库
-    with mysql.connect() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute("INSERT INTO job_execution_results (job_id,status) VALUES (%s, %s)", (job_id, 'running'))
-        conn.commit()
     dirs=os.listdir(app.config['STORAGE_PATH'])
     threads=[]
     for  dir in dirs:
@@ -94,11 +95,6 @@ def execute_auto_test_branch(plan_type):
     # 示例：提取 JSON 中的某个字段
     image_name = data.get("imageName")
     job_id=data.get("jobId")
-    # 插入数据库
-    with mysql.connect() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute("INSERT INTO job_execution_results (job_id,status) VALUES (%s, %s)", (job_id, 'running'))
-        conn.commit()
     target_path=os.path.join(app.config['STORAGE_PATH'],plan_type,stage)
     thread=threading.Thread(target=thread_execute_plan_auto_test,args=(target_path,plan_type,stage,image_name,job_id))
     thread.start()
@@ -107,7 +103,8 @@ def execute_auto_test_branch(plan_type):
 
 def thread_execute_plan_auto_test(path,plan_type,stage,image_name,job_id):
     dirs=os.listdir(path)
-    failure_count=0
+    failure_plan=[]
+    success_plan=[]
     for dir in dirs:
         base_path=os.path.join(path,dir)
         exec_path=os.path.join(app.config['EXECUTE_PATH'],plan_type,stage)
@@ -176,23 +173,26 @@ def thread_execute_plan_auto_test(path,plan_type,stage,image_name,job_id):
         }
         is_success=flow(planType, url, jobplan_data,multiThreads,stage,station,image_name)
         if is_success == False:
-            failure_count+=1
             app.logger.error(f'{branch}分支自动化测试失败，计划号：{planNo}，产线：{station}')
-            send_markdown_message(f'{branch}分支自动化测试失败，计划号：{planNo}，产线：{station}',mobiles)
+            failure_plan.append(planNo)
+            insert_jenkins_job_data(job_id,planNo,'failure')
         else:
             app.logger.info(f'{branch}分支自动化测试成功，计划号：{planNo}，产线：{station}')
-            send_markdown_message(f'{branch}分支自动化测试成功，计划号：{planNo}，产线：{station}',mobiles)
-        if failure_count==0:
-            with mysql.connect() as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute("UPDATE job_execution_results SET status='success' WHERE job_id=%s", (job_id,))
-                conn.commit()
-        else:
-            with mysql.connect() as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute("UPDATE job_execution_results SET status='failure' WHERE job_id=%s", (job_id,))
-                conn.commit()
-            
+            success_plan.append(planNo)
+            insert_jenkins_job_data(job_id,planNo,'success')
+    # 等待所有计划执行完毕 通知企微机器人任务计划的状态
+    successful_plans_str='\n'.join([f'- {plan}' for plan in success_plan])
+    failed_plans_str='\n'.join([f'- {plan}' for plan in failure_plan])
+    message = f"""
+        # Jenkins Job ID {job_id} - {branch} Test Results
+
+        ## Successful Plans
+        {successful_plans_str}
+
+        ## Failed Plans
+        {failed_plans_str}
+        """
+    send_markdown_message(message,mobiles)
 
 
 # master分支合并 release 执行合同和作业计划的自动测试
@@ -205,10 +205,6 @@ def execute_auto_test():
     if data is None:
         return jsonify({"error": "Invalid JSON data"}), 400
     job_id=data.get("jobId")
-    with mysql.connect() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute("INSERT INTO job_execution_results (job_id,status) VALUES (%s, %s)", (job_id, 'running'))
-        conn.commit()
     threads=[]
     for  dir in dirs:
         if os.path.isdir(os.path.join(app.config['STORAGE_PATH'],dir)):
@@ -218,6 +214,8 @@ def execute_auto_test():
     return jsonify({"status": "Auto test execution started", "threads_started": len(threads)})
 
 def multi_thread_execute_auto_test(dir,stage,job_id):
+        success_plan=[]
+        failure_plan=[]
         base_path=os.path.join(app.config['STORAGE_PATH'],dir,stage)
         exec_path=app.config['EXECUTE_PATH']
         if dir=='order_plan':
@@ -283,20 +281,34 @@ def multi_thread_execute_auto_test(dir,stage,job_id):
             }
             is_success=flow(planType, url, jobplan_data,multiThreads,stage,station)
             if is_success == False:
-                insert_jenkins_job_data(job_id,planNo,'failure')
                 app.logger.error(f'master分支自动化测试失败，计划号：{planNo}，产线：{station}')
-                send_markdown_message(f'master分支自动化测试失败，计划号：{planNo}，产线：{station}',mobiles)
+                failure_plan.append(planNo)
+                insert_jenkins_job_data(job_id,planNo,'failure')
             else:
-                insert_jenkins_job_data(job_id,planNo,'success')
                 app.logger.info(f'master分支自动化测试成功，计划号：{planNo}，产线：{station}')
-                send_markdown_message(f'master分支自动化测试成功，计划号：{planNo}，产线：{station}',mobiles)
+                success_plan.append(planNo)
+                insert_jenkins_job_data(job_id,planNo,'success')
+                
+        # jenkins job_id下master分支某个产线的自动化测试结果发送
+        successful_plans_str='\n'.join([f'- {plan}' for plan in success_plan])
+        failed_plans_str='\n'.join([f'- {plan}' for plan in failure_plan])
+        message=f"""
+        # Job ID {job_id} - Master - {station} Test Results
+
+        ## Successful Plans
+        {successful_plans_str}
+
+        ## Failed Plans
+        {failed_plans_str} 
+        """
+        send_markdown_message(message,mobiles)
+                
                 
 
 def insert_jenkins_job_data(job_id,plan_no,status):
-    with mysql.connect() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute("INSERT INTO job_execution_results (job_id,plan_no,status) VALUES (%s, %s, %s, %s)", (job_id,plan_no,status))
-        conn.commit()
+    job_result = JobExecutionResult(job_id=job_id, status=status, plan_no=plan_no)
+    db.session.add(job_result)
+    db.session.commit()
 
                 
 
@@ -552,6 +564,19 @@ def flow(plan_type, url, data,multiThreads,stage,station,image_name=None):  # �
 def send_markdown_message(content,mobiles):
     url=app.config['QYAPI']
     payload = {
+        "msgtype": "markdown",
+        "markdown": {
+            "content": content,
+            "mentioned_mobile_list": mobiles
+        }
+    }
+    app.logger.info(f'Sending text message: {content}')
+    response = requests.post(url,json=payload)
+    return response.json()
+
+def send_text_message(content,mobiles):
+    url=app.config['QYAPI']
+    payload = {
         "msgtype": "text",
         "text": {
             "content": content,
@@ -564,6 +589,6 @@ def send_markdown_message(content,mobiles):
 
 
 if __name__ == '__main__':
-    # with app.app_context():
-    #     db.create_all()
+    with app.app_context():
+        db.create_all()
     app.run(host='0.0.0.0', port=5000, debug=True)
