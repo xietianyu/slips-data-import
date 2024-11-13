@@ -13,3 +13,8 @@ class Config:
     MYSQL_DATABASE_DB = 'slips-data'
     MYSQL_DATABASE_HOST = '10.10.201.13'
     MYSQL_DATABASE_PORT = 3306 
+    ORDER_BRANCH='450-he-tong-ji-hua-gu-ding-fen-zhi'
+    S1_BRANCH='451-s1-gu-ding-fen-zhi'
+    D1_BRANCH='58-d1_zuo-ye-you-hua'
+    D2_BRANCH='453-d2-zuo-ye-ji-hua'
+    T1_BRANCH='318-lian-tui-you-hua'
