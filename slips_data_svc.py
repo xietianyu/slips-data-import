@@ -46,6 +46,19 @@ if not app.debug:
 def index():
     return render_template('index.html')
 
+@app.route('/jenkins_job')
+def get_jenkins_job():
+    data=request.get_json()
+    job_id=data.get("jobId")
+    with mysql.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM job_execution_results WHERE job_id=%s",(job_id,))
+            res=cursor.fetchall()
+            if res is None:
+                return jsonify({"error": "Invalid job id"}), 400
+            else:
+                # 返回查询结果
+                return jsonify(res)
 
 # 每月手动测试master分支 合同计划加作业计划
 @app.route('/monthly_test', methods=['POST'])
@@ -199,7 +212,6 @@ def execute_auto_test():
     return jsonify({"status": "Auto test execution started", "threads_started": len(threads)})
 
 def multi_thread_execute_auto_test(dir,stage,job_id):
-        failure_count=0
         base_path=os.path.join(app.config['STORAGE_PATH'],dir,stage)
         exec_path=app.config['EXECUTE_PATH']
         if dir=='order_plan':
@@ -265,19 +277,21 @@ def multi_thread_execute_auto_test(dir,stage,job_id):
             }
             is_success=flow(planType, url, jobplan_data,multiThreads,stage,station)
             if is_success == False:
-                failure_count+=1
                 app.logger.error(f'分支自动测试失败，计划号：{planNo}，产线：{station}')
-                send_markdown_message(f'分支自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
+                insert_jenkins_job_data(job_id,planNo,'failure')
+                # send_markdown_message(f'分支自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
             else:
                 app.logger.info(f'分支自动测试成功，计划号：{planNo}，产线：{station}')
-                send_markdown_message(f'分支自动测试成功，计划号：{planNo}，产线：{station}',mobiles)
-        with mysql.connect() as conn:
-            with conn.cursor() as cursor:
-                if failure_count==0:
-                    cursor.execute("UPDATE job_execution_results SET status='success' WHERE job_id=%s", (job_id,))
-                else:
-                    cursor.execute("UPDATE job_execution_results SET status='failure' WHERE job_id=%s",(job_id,))
-            
+                insert_jenkins_job_data(job_id,planNo,'success')
+                # send_markdown_message(f'分支自动测试成功，计划号：{planNo}，产线：{station}',mobiles)
+                
+
+def insert_jenkins_job_data(job_id,plan_no,status):
+    with mysql.connect() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("INSERT INTO job_execution_results (job_id,plan_no,status) VALUES (%s, %s, %s, %s)", (job_id,plan_no,status))
+        conn.commit()
+
 
 def is_plan_scheduling(plan_type,job_type):
     if plan_type=='jobPlan':
