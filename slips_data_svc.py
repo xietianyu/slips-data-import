@@ -78,7 +78,7 @@ def monthly_test():
     dirs=os.listdir(app.config['STORAGE_PATH'])
     threads=[]
     for  dir in dirs:
-        if os.path.isdir(os.path.join(app.config['STORAGE_PATH'],dir)):
+        if os.path.exists(os.path.join(app.config['STORAGE_PATH'],dir)) and os.path.isdir(os.path.join(app.config['STORAGE_PATH'],dir)):
             thread=threading.Thread(target=multi_thread_execute_auto_test,args=(dir,stage,job_id))
             thread.start()
             threads.append(thread)
@@ -180,19 +180,14 @@ def thread_execute_plan_auto_test(path,plan_type,stage,image_name,job_id):
             app.logger.info(f'{branch}分支自动化测试成功，计划号：{planNo}，产线：{station}')
             success_plan.append(planNo)
             insert_jenkins_job_data(job_id,planNo,'success')
+    app.logger.info(f'{branch}分支自动化测试任务全部完成')
     # 等待所有计划执行完毕 通知企微机器人任务计划的状态
     successful_plans_str='\n'.join([f'- {plan}' for plan in success_plan])
     failed_plans_str='\n'.join([f'- {plan}' for plan in failure_plan])
-    message = f"""
-        # Jenkins Job ID {job_id} - {branch} Test Results
-
-        ## Successful Plans
-        {successful_plans_str}
-
-        ## Failed Plans
-        {failed_plans_str}
-        """
-    send_markdown_message(message,mobiles)
+    message = f"Jenkins任务:{job_id}-分支:{branch}自动化测试结果\n\n"
+    message += f"成功计划:{successful_plans_str}"
+    message += f"失败计划:{failed_plans_str}"
+    send_text_message(message,mobiles)
 
 
 # master分支合并 release 执行合同和作业计划的自动测试
@@ -207,7 +202,7 @@ def execute_auto_test():
     job_id=data.get("jobId")
     threads=[]
     for  dir in dirs:
-        if os.path.isdir(os.path.join(app.config['STORAGE_PATH'],dir)):
+        if os.path.exists(os.path.join(app.config['STORAGE_PATH'],dir)) and os.path.isdir(os.path.join(app.config['STORAGE_PATH'],dir)):
             thread=threading.Thread(target=multi_thread_execute_auto_test,args=(dir,stage,job_id))
             thread.start()
             threads.append(thread)
@@ -290,25 +285,21 @@ def multi_thread_execute_auto_test(dir,stage,job_id):
                 insert_jenkins_job_data(job_id,planNo,'success')
                 
         # jenkins job_id下master分支某个产线的自动化测试结果发送
+        app.logger.info(f'master分支自动化测试{station}产线任务全部完成')
         successful_plans_str='\n'.join([f'- {plan}' for plan in success_plan])
         failed_plans_str='\n'.join([f'- {plan}' for plan in failure_plan])
-        message=f"""
-        # Job ID {job_id} - Master - {station} Test Results
-
-        ## Successful Plans
-        {successful_plans_str}
-
-        ## Failed Plans
-        {failed_plans_str} 
-        """
-        send_markdown_message(message,mobiles)
+        message = f"Jenkins任务:{job_id}-分支:Master-产线:{station}自动化测试结果\n\n"
+        message += f"成功计划:{successful_plans_str}"
+        message += f"失败计划:{failed_plans_str}"
+        send_text_message(message,mobiles)
                 
                 
 
 def insert_jenkins_job_data(job_id,plan_no,status):
-    job_result = JobExecutionResult(job_id=job_id, status=status, plan_no=plan_no)
-    db.session.add(job_result)
-    db.session.commit()
+    with app.app_context():
+        job_result = JobExecutionResult(job_id=job_id, status=status, plan_no=plan_no)
+        db.session.add(job_result)
+        db.session.commit()
 
                 
 
