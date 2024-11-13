@@ -85,30 +85,35 @@ def thread_execute_plan_auto_test(path,plan_type,stage,image_name):
             url = '/orderPlan/newOrderPlan'
             multiThreads=False
             mobiles=['18810322249']
+            branch=app.config['ORDER_BRANCH']
         elif plan_type=='s1_plan':
             planType='jobPlan'
             station='S1'
             url = '/jobPlan/newJobPlan'
             multiThreads=False
             mobiles=['18810322249']
+            branch=app.config['S1_BRANCH']
         elif plan_type=='d1_plan':
             planType='jobPlan'
             station='D1'
             url = '/jobPlan/newJobPlan'
             multiThreads=True
             mobiles=['13295852013']
+            branch=app.config['D1_BRANCH']
         elif plan_type=='d2_plan':
             planType='jobPlan'
             station='D2'
             url = '/jobPlan/newJobPlan'
             multiThreads=True
             mobiles=['15868823089']
+            branch=app.config['D2_BRANCH']
         elif plan_type=='t1_plan':
             planType='jobPlan'
             station='T1'
             url = '/jobPlan/newJobPlan'
             multiThreads=True
             mobiles=['18583685796']
+            branch=app.config['T1_BRANCH']
         os.makedirs(exec_path, exist_ok=True)
         shutil.copy(os.path.join(base_path,'algo_config.json'),os.path.join(exec_path,'algo_config.json'))
         shutil.copy(os.path.join(base_path,'store.hdf5'),os.path.join(exec_path,'store.hdf5'))
@@ -139,11 +144,11 @@ def thread_execute_plan_auto_test(path,plan_type,stage,image_name):
         }
         is_success=flow(planType, url, jobplan_data,multiThreads,stage,station,image_name)
         if is_success == False:
-            app.logger.error(f'分支自动测试失败，计划号：{planNo}，产线：{station}')
-            send_markdown_message(f'分支自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
+            app.logger.error(f'{branch}分支自动化测试失败，计划号：{planNo}，产线：{station}')
+            send_markdown_message(f'{branch}分支自动化测试失败，计划号：{planNo}，产线：{station}',mobiles)
         else:
-            app.logger.info(f'分支自动测试成功，计划号：{planNo}，产线：{station}')
-            send_markdown_message(f'分支自动测试成功，计划号：{planNo}，产线：{station}',mobiles)
+            app.logger.info(f'{branch}分支自动化测试成功，计划号：{planNo}，产线：{station}')
+            send_markdown_message(f'{branch}分支自动化测试成功，计划号：{planNo}，产线：{station}',mobiles)
 
 
 # master分支合并 release 执行合同和作业计划的自动测试
@@ -225,11 +230,11 @@ def multi_thread_execute_auto_test(dir,stage):
             }
             is_success=flow(planType, url, jobplan_data,multiThreads,stage,station)
             if is_success == False:
-                app.logger.error(f'分支自动测试失败，计划号：{planNo}，产线：{station}')
-                send_markdown_message(f'分支自动测试失败，计划号：{planNo}，产线：{station}',mobiles)
+                app.logger.error(f'master分支自动化测试失败，计划号：{planNo}，产线：{station}')
+                send_markdown_message(f'master分支自动化测试失败，计划号：{planNo}，产线：{station}',mobiles)
             else:
-                app.logger.info(f'分支自动测试成功，计划号：{planNo}，产线：{station}')
-                send_markdown_message(f'分支自动测试成功，计划号：{planNo}，产线：{station}',mobiles)
+                app.logger.info(f'master分支自动化测试成功，计划号：{planNo}，产线：{station}')
+                send_markdown_message(f'master分支自动化测试成功，计划号：{planNo}，产线：{station}',mobiles)
 
 def is_plan_scheduling(plan_type,job_type):
     if plan_type=='jobPlan':
