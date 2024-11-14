@@ -187,6 +187,10 @@ def thread_execute_plan_auto_test(path,plan_type,stage,image_name,job_id):
     message = f"Jenkins任务:{job_id}-分支:{branch}自动化测试结果\n\n"
     message += f"成功计划:\n{successful_plans_str}\n\n"
     message += f"失败计划:\n{failed_plans_str}\n"
+    if failure_plan != []:
+        message+="测试不通过\n\n"
+    else:
+        message+="测试通过\n\n"
     send_text_message(message,mobiles)
 
 
@@ -290,7 +294,11 @@ def multi_thread_execute_auto_test(dir,stage,job_id):
         failed_plans_str='\n'.join([f'- {plan}' for plan in failure_plan])
         message = f"Jenkins任务:{job_id}-分支:Master-产线:{station}自动化测试结果\n\n"
         message += f"成功计划:\n{successful_plans_str}\n\n"
-        message += f"失败计划:\n{failed_plans_str}\n"
+        message += f"失败计划:\n{failed_plans_str}\n\n"
+        if failure_plan != []:
+            message+="测试不通过\n\n"
+        else:
+            message+="测试通过\n\n"
         send_text_message(message,mobiles)
                 
                 
