@@ -153,7 +153,7 @@ def thread_execute_plan_auto_test(path,plan_type,stage,image_name,job_id):
         jobplan_data = {
             "station": str(station),
             "planNo": planNo,
-            "decisionNo": "",
+            "decisionNo": planNo,
             "scheduled": False,
             "planLimitTimeMin": 24,
             "planLimitTimeMax": 30,
@@ -261,7 +261,7 @@ def multi_thread_execute_auto_test(dir,stage,job_id):
             jobplan_data = {
                 "station": str(station),
                 "planNo": planNo,
-                "decisionNo": "",
+                "decisionNo": planNo,
                 "scheduled": False,
                 "planLimitTimeMin": 24,
                 "planLimitTimeMax": 30,
