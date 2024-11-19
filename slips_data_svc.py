@@ -150,10 +150,14 @@ def thread_execute_plan_auto_test(path,plan_type,stage,image_name,job_id):
         utc_time = calendar.timegm(time.gmtime())
         app.logger.info(str(station) + '，计划号：Test' + str(station) + str(utc_time))
         planNo='Test' + str(station) + str(utc_time)
+        if station!='order':
+            decisionNo=planNo
+        else:
+            decisionNo=None
         jobplan_data = {
             "station": str(station),
             "planNo": planNo,
-            "decisionNo": planNo,
+            "decisionNo": decisionNo,
             "scheduled": False,
             "planLimitTimeMin": 24,
             "planLimitTimeMax": 30,
@@ -258,10 +262,14 @@ def multi_thread_execute_auto_test(dir,stage,job_id):
             utc_time = calendar.timegm(time.gmtime())  # 获取时间戳
             app.logger.info(str(station) + '，计划号：Test' + str(station) + str(utc_time))
             planNo='Test' + str(station) + str(utc_time)
+            if station!='order':
+                decisionNo=planNo
+            else:
+                decisionNo=None
             jobplan_data = {
                 "station": str(station),
                 "planNo": planNo,
-                "decisionNo": planNo,
+                "decisionNo": decisionNo,
                 "scheduled": False,
                 "planLimitTimeMin": 24,
                 "planLimitTimeMax": 30,
@@ -523,7 +531,8 @@ def confirm_progress(plan_type, planid):  # 排程进度轮循
 def check_task_scheduled(plan_type, planid):  # 确认获取已排任务
     url = '/' + plan_type + '/getScheduledJobs'
     data = {
-        plan_type+"Id": planid
+        plan_type+"Id": planid,
+        "batchPlanName":"plan_1"
     }
     res = check_res_code(url, data)
     if res is not False:  # 确认返回值code，不为0不执行
