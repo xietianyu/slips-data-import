@@ -52,6 +52,19 @@
         th {
             background-color: #f2f2f2;
         }
+        .file-import {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .file-list {
+            background-color: #fff;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
     </style>
 </head>
   <body>
@@ -69,35 +82,35 @@
     <!-- Real-time Data Import Section --> 
     <div class="section">
         <h2>分支自动化测试数据导入</h2>
-        <div class="entry">
+        <div class="entry file-import">
             <form action="{{ url_for('upload_file', upload_type='order_plan',stage='push') }}" method="POST" enctype="multipart/form-data">
                 <label>合同计划</label>
                 <input type="file" name="file" required>
                 <button type="submit">Upload and Import</button>
             </form>
         </div>
-        <div class="entry">
+        <div class="entry file-import">
             <form action="{{ url_for('upload_file', upload_type='s1_plan',stage='push') }}" method="POST" enctype="multipart/form-data">
                 <label>酸轧作业计划</label>
                 <input type="file" name="file" required>
                 <button type="submit">Upload and Import</button>
             </form>
         </div>
-        <div class="entry">
+        <div class="entry file-import">
             <form action="{{ url_for('upload_file', upload_type='d1_plan',stage='push') }}" method="POST" enctype="multipart/form-data">
                 <label>镀锌1作业计划</label>
                 <input type="file" name="file" required>
                 <button type="submit">Upload and Import</button>
             </form>
         </div>
-        <div class="entry">
+        <div class="entry file-import">
             <form action="{{ url_for('upload_file', upload_type='d2_plan',stage='push') }}" method="POST" enctype="multipart/form-data">
                 <label>镀锌2作业计划</label>
                 <input type="file" name="file" required>
                 <button type="submit">Upload and Import</button>
             </form>
         </div>
-        <div class="entry">
+        <div class="entry file-import">
             <form action="{{ url_for('upload_file', upload_type='t1_plan',stage='push') }}" method="POST" enctype="multipart/form-data">
                 <label>连退作业计划</label>
                 <input type="file" name="file" required>
@@ -109,35 +122,35 @@
     <!-- Historical Data Import Section -->
     <div class="section">
         <h2>Master分支自动化测试历史数据导入</h2>
-        <div class="entry">
+        <div class="entry file-import">
             <form action="{{ url_for('upload_file', upload_type='order_plan',stage='merge') }}" method="POST" enctype="multipart/form-data">
                 <label>合同计划</label>
                 <input type="file" name="file" required>
                 <button type="submit">Upload and Import</button>
             </form>
         </div>
-        <div class="entry">
+        <div class="entry file-import">
             <form action="{{ url_for('upload_file', upload_type='s1_plan',stage='merge') }}" method="POST" enctype="multipart/form-data">
                 <label>酸轧作业计划</label>
                 <input type="file" name="file" required>
                 <button type="submit">Upload and Import</button>
             </form>
         </div>
-        <div class="entry">
+        <div class="entry file-import">
             <form action="{{ url_for('upload_file', upload_type='d1_plan',stage='merge') }}" method="POST" enctype="multipart/form-data">
                 <label>镀锌1作业计划</label>
                 <input type="file" name="file" required>
                 <button type="submit">Upload and Import</button>
             </form>
         </div>
-        <div class="entry">
+        <div class="entry file-import">
             <form action="{{ url_for('upload_file', upload_type='d2_plan',stage='merge') }}" method="POST" enctype="multipart/form-data">
                 <label>镀锌2作业计划</label>
                 <input type="file" name="file" required>
                 <button type="submit">Upload and Import</button>
             </form>
         </div>
-        <div class="entry">
+        <div class="entry file-import">
             <form action="{{ url_for('upload_file', upload_type='t1_plan',stage='merge') }}" method="POST" enctype="multipart/form-data">
                 <label>连退作业计划</label>
                 <input type="file" name="file" required>
@@ -148,7 +161,7 @@
 
     <div class="section">
         <h2>Master月度手动测试历史数据导入</h2>
-        <div class="entry">
+        <div class="entry file-import">
             <form action="{{ url_for('upload_file', upload_type='order_plan',stage='monthly') }}" method="POST" enctype="multipart/form-data">
                 <label>合同计划</label>
                 <input type="file" name="file" required>
@@ -178,7 +191,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="entry">
+        <div class="entry file-import">
             <form action="{{ url_for('upload_file', upload_type='s1_plan',stage='monthly') }}" method="POST" enctype="multipart/form-data">
                 <label>酸轧作业计划</label>
                 <input type="file" name="file" required>
@@ -208,7 +221,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="entry">
+        <div class="entry file-import">
             <form action="{{ url_for('upload_file', upload_type='d1_plan',stage='monthly') }}" method="POST" enctype="multipart/form-data">
                 <label>镀锌1作业计划</label>
                 <input type="file" name="file" required>
@@ -238,7 +251,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="entry">
+        <div class="entry file-import">
             <form action="{{ url_for('upload_file', upload_type='d2_plan',stage='monthly') }}" method="POST" enctype="multipart/form-data">
                 <label>镀锌2作业计划</label>
                 <input type="file" name="file" required>
@@ -268,7 +281,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="entry">
+        <div class="entry file-import">
             <form action="{{ url_for('upload_file', upload_type='t1_plan',stage='monthly') }}" method="POST" enctype="multipart/form-data">
                 <label>连退作业计划</label>
                 <input type="file" name="file" required>
@@ -276,7 +289,7 @@
             </form>
         </div>
         <div class="file-list">
-            <h3>连退作业计划文件列表</h3>
+            <h3>连退作业计划文件列表</h3> 
             <table>
                 <thead>
                     <tr>
