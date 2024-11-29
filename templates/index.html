@@ -27,9 +27,34 @@
         .entry {
             margin-bottom: 10px;
         }
+        .file-list {
+            margin-top: 20px;
+        }
+        .file-list ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .file-list li {
+            margin-bottom: 5px;
+        }
+        .file-list button {
+            margin-left: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
     </style>
 </head>
-<body>
+  <body>
     <h1>Upload HDF5 File</h1>
 
     <!-- Flash messages -->
@@ -130,12 +155,58 @@
                 <button type="submit">Upload and Import</button>
             </form>
         </div>
+        <div class="file-list">
+            <h3>合同计划文件列表</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>文件名</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for file in order_files %}
+                        <tr>
+                            <td>{{ file }}</td>
+                            <td>
+                                <form action="{{ url_for('delete_file', upload_type='order_plan', stage='monthly', filename=file) }}" method="POST" style="display:inline;">
+                                    <button type="submit">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         <div class="entry">
             <form action="{{ url_for('upload_file', upload_type='s1_plan',stage='monthly') }}" method="POST" enctype="multipart/form-data">
                 <label>酸轧作业计划</label>
                 <input type="file" name="file" required>
                 <button type="submit">Upload and Import</button>
             </form>
+        </div>
+        <div class="file-list">
+            <h3>酸轧作业计划文件列表</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>文件名</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for file in s1_files %}
+                        <tr>
+                            <td>{{ file }}</td>
+                            <td>
+                                <form action="{{ url_for('delete_file', upload_type='s1_plan', stage='monthly', filename=file) }}" method="POST" style="display:inline;">
+                                    <button type="submit">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
         <div class="entry">
             <form action="{{ url_for('upload_file', upload_type='d1_plan',stage='monthly') }}" method="POST" enctype="multipart/form-data">
@@ -144,6 +215,29 @@
                 <button type="submit">Upload and Import</button>
             </form>
         </div>
+        <div class="file-list">
+            <h3>镀锌1作业计划文件列表</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>文件名</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for file in d1_files %}
+                        <tr>
+                            <td>{{ file }}</td>
+                            <td>
+                                <form action="{{ url_for('delete_file', upload_type='d1_plan', stage='monthly', filename=file) }}" method="POST" style="display:inline;">
+                                    <button type="submit">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         <div class="entry">
             <form action="{{ url_for('upload_file', upload_type='d2_plan',stage='monthly') }}" method="POST" enctype="multipart/form-data">
                 <label>镀锌2作业计划</label>
@@ -151,12 +245,58 @@
                 <button type="submit">Upload and Import</button>
             </form>
         </div>
+        <div class="file-list">
+            <h3>镀锌2作业计划文件列表</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>文件名</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for file in d2_files %}
+                        <tr>
+                            <td>{{ file }}</td>
+                            <td>
+                                <form action="{{ url_for('delete_file', upload_type='d2_plan', stage='monthly', filename=file) }}" method="POST" style="display:inline;">
+                                    <button type="submit">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         <div class="entry">
             <form action="{{ url_for('upload_file', upload_type='t1_plan',stage='monthly') }}" method="POST" enctype="multipart/form-data">
                 <label>连退作业计划</label>
                 <input type="file" name="file" required>
                 <button type="submit">Upload and Import</button>
             </form>
+        </div>
+        <div class="file-list">
+            <h3>连退作业计划文件列表</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>文件名</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for file in t1_files %}
+                        <tr>
+                            <td>{{ file }}</td>
+                            <td>
+                                <form action="{{ url_for('delete_file', upload_type='t1_plan', stage='monthly', filename=file) }}" method="POST" style="display:inline;">
+                                    <button type="submit">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </body>

@@ -54,7 +54,53 @@ if not app.debug:
 # 首页：上传文件表单
 @app.route('/')
 def index():
-    return render_template('index.html')
+    order_files = list_uploaded_order_files()
+    s1_files = list_uploaded_s1_files()
+    d1_files = list_uploaded_d1_files()
+    d2_files = list_uploaded_d2_files()
+    t1_files = list_uploaded_t1_files()
+    return render_template('index.html', order_files=order_files, s1_files=s1_files, d1_files=d1_files, d2_files=d2_files, t1_files=t1_files)
+
+def list_uploaded_order_files():
+    base_path = os.path.join(app.config['STORAGE_PATH'], 'order_plan', 'monthly')
+    if os.path.exists(base_path):
+        return os.listdir(base_path)
+    return []
+
+def list_uploaded_s1_files():
+    base_path = os.path.join(app.config['STORAGE_PATH'], 's1_plan', 'monthly')
+    if os.path.exists(base_path):
+        return os.listdir(base_path)
+    return []
+
+def list_uploaded_d1_files():
+    base_path = os.path.join(app.config['STORAGE_PATH'], 'd1_plan', 'monthly')
+    if os.path.exists(base_path):
+        return os.listdir(base_path)
+    return []
+
+def list_uploaded_d2_files():
+    base_path = os.path.join(app.config['STORAGE_PATH'], 'd2_plan', 'monthly')
+    if os.path.exists(base_path):
+        return os.listdir(base_path)
+    return []
+
+def list_uploaded_t1_files():
+    base_path = os.path.join(app.config['STORAGE_PATH'], 't1_plan', 'monthly')
+    if os.path.exists(base_path):
+        return os.listdir(base_path)
+    return []   
+
+
+@app.route('/delete_file/<upload_type>/<stage>/<filename>', methods=['POST'])
+def delete_file(upload_type, stage, filename):
+    file_path = os.path.join(app.config['STORAGE_PATH'], upload_type, stage, filename)
+    if os.path.exists(file_path):
+        shutil.rmtree(file_path)
+        flash(f'File {filename} deleted successfully!', 'success')
+    else:
+        flash(f'File {filename} not found!', 'error')
+    return redirect(url_for('index'))
 
 @app.route('/job_results/<job_id>', methods=['GET'])
 def get_job_results(job_id):
@@ -405,7 +451,7 @@ def handle_uploaded_file(file_path,upload_type,stage):
             if not has_hdf5 or not has_algo_config:
                 app.logger.error(f'Error: {target_dir} is missing hdf5 or algo_config.json file')
                 raise Exception(f'An error occurred: {target_dir} is missing hdf5 or algo_config.json file')
-            
+
 def import_data_to_db(file_path):
     # 使用 pandas 读取 HDF5 文件中的数据
     with pd.HDFStore(file_path, 'r') as store:
